@@ -1,0 +1,80 @@
+Code:
+
+# Required Libraries
+import tensorflow as tf
+from tensorflow.keras import layers, models
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report, confusion_matrix
+import matplotlib.pyplot as plt
+
+# Step 1: Data Collection (Assume you have a dataset with images and corresponding labels)
+# Replace 'data_directory' with the path to your dataset directory
+data_directory = 'data_directory'
+
+# Step 2: Data Preprocessing
+# Resize images, normalize pixel values, and split data into training and testing sets
+batch_size = 32
+image_size = (224, 224)
+
+train_datagen = tf.keras.preprocessing.image.ImageDataGenerator(
+    rescale=1./255,
+    validation_split=0.2)  # 80% training, 20% validation
+
+train_generator = train_datagen.flow_from_directory(
+    data_directory,
+    target_size=image_size,
+    batch_size=batch_size,
+    class_mode='categorical',
+    subset='training')
+
+validation_generator = train_datagen.flow_from_directory(
+    data_directory,
+    target_size=image_size,
+    batch_size=batch_size,
+    class_mode='categorical',
+    subset='validation')
+
+# Step 3: Model Architecture (Choose a CNN architecture)
+base_model = tf.keras.applications.VGG16(
+    weights='imagenet',
+    include_top=False,
+    input_shape=(224, 224, 3)
+)
+
+# Add custom classification layers on top of the pre-trained model
+model = models.Sequential()
+model.add(base_model)
+model.add(layers.Flatten())
+model.add(layers.Dense(256, activation='relu'))
+model.add(layers.Dropout(0.5))
+model.add(layers.Dense(train_generator.num_classes, activation='softmax'))
+
+# Step 4: Transfer Learning (Freeze pre-trained layers and fine-tune the custom layers)
+# This step can be added as needed
+
+# Step 5: Model Training
+model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+epochs = 10  # Adjust as needed
+history = model.fit(train_generator, epochs=epochs, validation_data=validation_generator)
+
+# Step 6: Model Evaluation
+test_loss, test_accuracy = model.evaluate(validation_generator)
+print(f"Test Accuracy: {test_accuracy}")
+
+# Step 7: Visualization
+# Plot training/validation accuracy and loss over epochs
+plt.plot(history.history['accuracy'], label='Training Accuracy')
+plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
+plt.xlabel('Epochs')
+plt.ylabel('Accuracy')
+plt.legend()
+plt.show()
+
+# Confusion Matrix and Classification Report
+predictions = model.predict(validation_generator)
+y_pred = tf.argmax(predictions, axis=1)
+y_true = validation_generator.classes
+conf_matrix = confusion_matrix(y_true, y_pred)
+class_report = classification_report(y_true, y_pred)
+print("Confusion Matrix:\n", conf_matrix)
+print("Classification Report:\n", class_report)
